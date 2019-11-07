@@ -1,0 +1,3 @@
+https://www.geeksforgeeks.org/converting-strings-numbers-cc/
+http://www.cplusplus.com/reference/string/string/length/
+http://www.cplusplus.com/reference/string/to_string/
