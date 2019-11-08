@@ -120,6 +120,7 @@ int main(int argc, char *argv[])
             if ((clientSock = accept(serverSock, (struct sockaddr *) &clientAddr, &size)) < 0)
                 break;
             cout << "Accepted a connection from " << inet_ntoa(clientAddr.sin_addr) << ":" << clientAddr.sin_port << endl;
+            // might be good idea to concact with sin_port before pushing for granularity
             clientAddresses.push_back(inet_ntoa(clientAddr.sin_addr));
             // don't know if this actually works with multiple hosts since i'm not able to test
             clientSockets.push_back(clientSock);
@@ -133,6 +134,7 @@ int main(int argc, char *argv[])
         else
             processSockets(tempRecvSockSet);
             if (playing) {
+                // don't look for more connections.
                 playGame();
             }
     }
@@ -236,6 +238,7 @@ void processSockets (fd_set readySocks)
           if (messageReceived.compare("start")==0)
           {
               votes++;
+              // ** indicates on that the game is going to start as soon as votes == people connected
               messageToSend = "**wait for start**";
               // only worrying about getting the game started for at least the one person.
               if (clientAddresses.size() == votes /* && clientAddresses.size() > 1 */)
@@ -474,15 +477,21 @@ void playGame(){
 
 
     while (!gameOver) {
+        // allow client to recieve message before piling another one on the recvsock causing issues with current protocol
+        // more of an issue if first person connected is the last one to ready up.
         usleep(1000000/2);
 
+        // draw grid on server
         drawGrid(width, height, players, turnCount, pointsTaken);
 
+        // unblock client who's supposed to make a turn
         messageToSend = "It's your turn "+ players.at(turnCount).getName();
         sendData(messageToSend, clientSockets.at(turnCount), buffer, size, clientAddresses.at(turnCount));
 
+        // wait for client's response
         messageRecieved = receiveData(clientSockets.at(turnCount), (char*)buffer, size, clientAddresses.at(turnCount));
 
+        // for tokenizing message from client
         vector<string> coordinates; 
         stringstream stream(messageRecieved);
         
@@ -492,17 +501,21 @@ void playGame(){
         getline(stream, xCoordinateString, ',');
         getline(stream, yCoordinateString, ',');
 
+        // parse int from strings
         int xCoord = stoi(xCoordinateString);
         int yCoord = stoi(yCoordinateString);
 
         location pp;
 
+        // set previous position of current client as taken in game state
         pp.setPos(players[turnCount].getXpos(), players[turnCount].getYpos());
         pointsTaken.push_back(pp);
 
+        // update clients position to input
         players[turnCount].setXpos(xCoord);
         players[turnCount].setYpos(yCoord);
 
+        // change turn
         turnCount++;
 		// reset turn to first player
 		if (turnCount >= players.size())
