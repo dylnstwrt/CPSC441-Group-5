@@ -59,7 +59,7 @@ string receiveData (int, char[], int&, string);
 //////////////////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////Game Methods////////////////////////////////////////////
-void drawGrid(int , int , vector<player> , int , vector<location>);
+string drawGrid(int , int , vector<player> , int , vector<location>);
 void initGameState();
 void playGame();
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -227,8 +227,8 @@ void processSockets (fd_set readySocks)
           if (messageReceived.compare("start")==0)
           {
               votes++;
-              messageToSend = "**wait for start";
-              if (clientAddresses.size() == votes)
+              messageToSend = "**wait for start**";
+              if (clientAddresses.size() == votes && clientAddresses.size() > 1)
               {
                   playing = true;
                   /* for (int i = 0; i < clientSockets.size(); i++) {
@@ -324,11 +324,15 @@ void sendData (string msgToSend, int sock, char* buffer, int size, string ip)
     cout << "SentTo " << ip << " : " << msgToSend << endl;
 }
 
-void drawGrid(int width, int height, vector<player> players, int turn, vector<location> pointsTaken)
-{
+string drawGrid(int width, int height, vector<player> players, int turn, vector<location> pointsTaken)
+{   
+    stringstream formatString;
+    //cout<< endl;
+    formatString << endl;
 	for (int y = 0; y <= (height * 2) ; y++)
 	{
-		cout << "               ";
+		//cout<< "               ";
+        formatString << "               ";
 		if (y % 2 == 0 )
 		{
 			for (int x = 0; x <= width * 2; x++)
@@ -336,7 +340,8 @@ void drawGrid(int width, int height, vector<player> players, int turn, vector<lo
 				// odds are space and evens are lines
 				if (x % 2 != 0)
 				{
-					cout << "-";
+					//cout<< "-";
+                    formatString  << "-";
 				}
 				else
 				{
@@ -353,7 +358,8 @@ void drawGrid(int width, int height, vector<player> players, int turn, vector<lo
 						if (x == ptx && y == pty)
 						{
 							// print @ for points that players have already been in
-							cout << "@";
+							//cout<< "@";
+                            formatString << "@";
 							printed = true;
 							taken = true;
 						}
@@ -370,7 +376,8 @@ void drawGrid(int width, int height, vector<player> players, int turn, vector<lo
 							py = py * 2;
 							if (x == px && y == py)
 							{
-								cout << players[i].getPiece();
+								//cout<< players[i].getPiece();
+                                formatString << players[i].getPiece();
 								printed = true;
 							}
 						}					
@@ -379,11 +386,13 @@ void drawGrid(int width, int height, vector<player> players, int turn, vector<lo
 										
 					if (printed == false)
 					{
-						cout << " ";
+						//cout<< " ";
+                        formatString << " ";
 					}
 				}
 			}
-			cout << endl;
+			//cout<< endl;
+            formatString << endl;
 		}
 		else
 		{
@@ -392,17 +401,22 @@ void drawGrid(int width, int height, vector<player> players, int turn, vector<lo
 				// odds are space and evens are lines
 				if (x % 2 == 0)
 				{
-					cout << "|";
+					//cout<< "|";
+                    formatString << "|";
 				}
 				else
 				{
-					cout << " ";
+					//cout<< " ";
+                    formatString << " ";
 				}
 			}
-			cout << " " << endl;
+			//cout<< " " << endl;
+            formatString << " " << endl;
 		}
 		
 	}
+
+    return formatString.str(); 
 }
 
 void initGameState() {
@@ -429,7 +443,7 @@ void playGame(){
     usleep(1000000/2);
 
     for (int i = 0; i < clientSockets.size(); i++) {
-        messageToSend = "**gamestate";
+        messageToSend = drawGrid(width, height, players, turnCount, pointsTaken);
         sendData(messageToSend, clientSockets.at(i), buffer, size, clientAddresses.at(i));
         }
 
@@ -461,6 +475,9 @@ void playGame(){
         pp.setPos(players[turnCount].getXpos(), players[turnCount].getYpos());
         pointsTaken.push_back(pp);
 
+        players[turnCount].setXpos(xCoord);
+        players[turnCount].setYpos(yCoord);
+
         turnCount++;
 		// reset turn to first player
 		if (turnCount >= players.size())
@@ -473,6 +490,11 @@ void playGame(){
 			gameOver = true;
 			drawGrid(width, height, players, turnCount, pointsTaken);
             terminated = true;
-		}
+		} else {
+            string toSend = drawGrid(width, height, players, turnCount, pointsTaken);
+            for (int i = 0; i < clientSockets.size(); ++i){
+                sendData(toSend, clientSockets.at(i), buffer, size, clientAddresses.at(i));
+            }
+        }
     }
 }
