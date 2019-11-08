@@ -1,3 +1,7 @@
+/**
+ * @author Nico
+ **/
+
 #include <iostream>
 #include <vector>
 

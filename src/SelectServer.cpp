@@ -1,7 +1,6 @@
 /*
- * A simple TCP select server that accepts multiple connections and echo message back to the clients
- * For use in CPSC 441 lectures
- * Instructor: Prof. Mea Wang
+ * Modified version of the example code given by Mea Wang for CPSC441.
+ * @author Group 5: Dylan Stewart, Nicolas Urrego, Sandesh Regmi, and Wentao aka. Chris Sun
  */
 
  #include <iostream>
@@ -14,7 +13,7 @@
  #include <fstream>
  #include <string>
  #include <sstream>
- #include "game.h"
+ #include "game.h"       // for player, and location classes. 
 
 using namespace std;
 
@@ -64,6 +63,9 @@ void initGameState();
 void playGame();
 //////////////////////////////////////////////////////////////////////////////////////////
 
+/* 
+    @Author Mea Wang, edited by Dylan for CPSC441
+ */
 int main(int argc, char *argv[])
 {
     int serverSock;                  // server socket descriptor
@@ -119,6 +121,7 @@ int main(int argc, char *argv[])
                 break;
             cout << "Accepted a connection from " << inet_ntoa(clientAddr.sin_addr) << ":" << clientAddr.sin_port << endl;
             clientAddresses.push_back(inet_ntoa(clientAddr.sin_addr));
+            // don't know if this actually works with multiple hosts since i'm not able to test
             clientSockets.push_back(clientSock);
 
             // Add the new connection to the receive socket set
@@ -145,6 +148,9 @@ int main(int argc, char *argv[])
     close(serverSock);
 }
 
+/* 
+    @Author Mea Wang
+ */
 void initServer(int& serverSock, int port)
 {
     struct sockaddr_in serverAddr;   // address of the server
@@ -194,6 +200,9 @@ void initServer(int& serverSock, int port)
     }
 }
 
+/* 
+    @Author Mea Wang, Edited for CPSC441 by Dylan
+ */
 void processSockets (fd_set readySocks)
 {
     char* buffer = new char[BUFFERSIZE];       // Buffer for the message from the server
@@ -228,7 +237,8 @@ void processSockets (fd_set readySocks)
           {
               votes++;
               messageToSend = "**wait for start**";
-              if (clientAddresses.size() == votes && clientAddresses.size() > 1)
+              // only worrying about getting the game started for at least the one person.
+              if (clientAddresses.size() == votes /* && clientAddresses.size() > 1 */)
               {
                   playing = true;
                   /* for (int i = 0; i < clientSockets.size(); i++) {
@@ -248,6 +258,9 @@ void processSockets (fd_set readySocks)
     delete[] buffer;
 }
 
+/* 
+    @author San
+ */
 string receiveData (int sock, char* inBuffer, int& size, string ip)
 {
     // Receive the message from client
@@ -291,6 +304,9 @@ string receiveData (int sock, char* inBuffer, int& size, string ip)
     return currentMsg;
 }
 
+/* 
+    @author San
+ */
 void sendData (string msgToSend, int sock, char* buffer, int size, string ip)
 {
     int bytesSent = 0;                   // Number of bytes sent
@@ -324,6 +340,9 @@ void sendData (string msgToSend, int sock, char* buffer, int size, string ip)
     cout << "SentTo " << ip << " : " << msgToSend << endl;
 }
 
+/* 
+    @author Nico, edited by Dylan
+ */
 string drawGrid(int width, int height, vector<player> players, int turn, vector<location> pointsTaken)
 {   
     stringstream formatString;
@@ -419,6 +438,9 @@ string drawGrid(int width, int height, vector<player> players, int turn, vector<
     return formatString.str(); 
 }
 
+/* 
+    @author Dylan
+ */
 void initGameState() {
     for (int i = 0; i < clientAddresses.size(); i++) {
         player toCreate;
@@ -432,6 +454,9 @@ void initGameState() {
     }
 }
 
+/* 
+    @author Dylan. Game loop modelled after main() in misc/main.cpp; which was written by Nico
+ */
 void playGame(){
 
     string messageToSend, messageRecieved;
