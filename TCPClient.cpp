@@ -132,7 +132,7 @@ int main(int argc, char *argv[])
 
         std::cout << "Server: " << msgRecev << '\n';
 
-        while(msgRecev.compare(0,2,"**") == 0) {
+        while(msgRecev.compare(0,4,"It's") != 0) {
             char* tempBuff = new char[BUFFERSIZE];
             msgRecev = receiveData(sock, (char*)tempBuff, bytesRecv);
             cout << "Server: " << msgRecev << endl;
