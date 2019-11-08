@@ -13,18 +13,42 @@
  #include <stdio.h>
  #include <fstream>
  #include <string>
+ #include <sstream>
  #include "game.h"
 
 using namespace std;
 
+/////////////////////////////////Game Variables///////////////////////////////////////////
+bool gameOver = false;
+const int width = 7;
+const int height = 3;
+vector<player> players;
+vector<location> pointsTaken;
+
+int availablePoints = (width+1) * (height+1);
+int usedpoints = 4;
+unsigned int turnCount = 0;
+
+vector <string> playerSymbols ({"*", "x", "K", "G"});
+vector <int> startingXCoordinates ({0, width, width, 0});
+vector <int> startingYCoordinates ({0, height, 0, height});
+
+int turnsMade = 0;
+//////////////////////////////////////////////////////////////////////////////////////////
+
 
 ////////////////////////////////// Server Variables///////////////////////////////////////
-const int BUFFERSIZE = 32;   // Size the message buffers
+const int BUFFERSIZE = 32;    // Size the message buffers
 const int MAXPENDING = 10;    // Maximum pending connections
 
 fd_set recvSockSet;   // The set of descriptors for incoming connections
 int maxDesc = 0;      // The max descriptor
-bool terminated = false;
+bool terminated = false; // for loop in main
+vector<string> clientAddresses; // vector for client IP strings, added when client-server connection is established
+int votes = 0;        // used to count how many people are ready to join game when in lobby
+bool playing = false; // when false, server is considered "in lobby"
+
+vector <int> clientSockets; 
 //////////////////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////Server Methods//////////////////////////////////////////
@@ -34,17 +58,10 @@ void sendData (string, int, char[], int, string);
 string receiveData (int, char[], int&, string);
 //////////////////////////////////////////////////////////////////////////////////////////
 
-/////////////////////////////////Game Variables///////////////////////////////////////////
-bool gameOver = false;
-const int width = 7;
-const int heigth = 3;
-vector<player> players;
-vector<location> pointsTaken;
-//////////////////////////////////////////////////////////////////////////////////////////
-
 //////////////////////////////////Game Methods////////////////////////////////////////////
 void drawGrid(int , int , vector<player> , int , vector<location>);
 void initGameState();
+void playGame();
 //////////////////////////////////////////////////////////////////////////////////////////
 
 int main(int argc, char *argv[])
@@ -101,6 +118,8 @@ int main(int argc, char *argv[])
             if ((clientSock = accept(serverSock, (struct sockaddr *) &clientAddr, &size)) < 0)
                 break;
             cout << "Accepted a connection from " << inet_ntoa(clientAddr.sin_addr) << ":" << clientAddr.sin_port << endl;
+            clientAddresses.push_back(inet_ntoa(clientAddr.sin_addr));
+            clientSockets.push_back(clientSock);
 
             // Add the new connection to the receive socket set
             FD_SET(clientSock, &recvSockSet);
@@ -110,6 +129,9 @@ int main(int argc, char *argv[])
         // Then process messages waiting at each ready socket
         else
             processSockets(tempRecvSockSet);
+            if (playing) {
+                playGame();
+            }
     }
 
     // Close the connections with the client
@@ -186,6 +208,7 @@ void processSockets (fd_set readySocks)
         // Clear the buffers
         memset(buffer, 0, BUFFERSIZE);
 
+        // create struct, populate struct with client information, use IP address and reference clientAddresses vector for identification
         struct sockaddr_in clientSocketInfo;
         unsigned int clientSocketInfoSize = sizeof(clientSocketInfo);
         memset(&clientSocketInfo, 0, clientSocketInfoSize);
@@ -193,14 +216,33 @@ void processSockets (fd_set readySocks)
 
         string clientIPv4 = inet_ntoa(clientSocketInfo.sin_addr);
 
-        // Receive data from the client
-        string message;
-        message = receiveData(sock, buffer, size, clientIPv4);
+        // Receive data from the cli// do stuff here depending on state and IP;ent
+        string messageReceived;
+        string messageToSend;
+        messageReceived = receiveData(sock, buffer, size, clientIPv4);
+        
 
-        // do stuff here depending on state and IP;
+        if (!playing)
+        {
+          if (messageReceived.compare("start")==0)
+          {
+              votes++;
+              messageToSend = "**wait for start";
+              if (clientAddresses.size() == votes)
+              {
+                  playing = true;
+                  /* for (int i = 0; i < clientSockets.size(); i++) {
+                      initGameState();
+                      messageToSend = "**gamestate";
+                      sendData(messageToSend, clientSockets.at(i), buffer, size, clientAddresses.at(i));
+                  } */
+              }
+          } else {
+              messageToSend = messageReceived;
+          }
+        }
+        sendData(messageToSend, sock, buffer, size, clientIPv4);
 
-        // Echo the message back to the client
-        sendData(message, sock, buffer, size, clientIPv4);
     }
 
     delete[] buffer;
@@ -282,9 +324,9 @@ void sendData (string msgToSend, int sock, char* buffer, int size, string ip)
     cout << "SentTo " << ip << " : " << msgToSend << endl;
 }
 
-void drawGrid(int width, int heigth, vector<player> players, int turn, vector<location> pointsTaken)
+void drawGrid(int width, int height, vector<player> players, int turn, vector<location> pointsTaken)
 {
-	for (int y = 0; y <= (heigth * 2) ; y++)
+	for (int y = 0; y <= (height * 2) ; y++)
 	{
 		cout << "               ";
 		if (y % 2 == 0 )
@@ -361,4 +403,76 @@ void drawGrid(int width, int heigth, vector<player> players, int turn, vector<lo
 		}
 		
 	}
+}
+
+void initGameState() {
+    for (int i = 0; i < clientAddresses.size(); i++) {
+        player toCreate;
+        string playerName = "Player " + to_string(i+1);
+        toCreate.setPiece(playerSymbols.at(i));
+        toCreate.setPos(startingXCoordinates.at(i), startingYCoordinates.at(i));
+        toCreate.setName(playerName);
+
+        players.push_back(toCreate);
+        
+    }
+}
+
+void playGame(){
+
+    string messageToSend, messageRecieved;
+    char* buffer = new char[BUFFERSIZE];
+    int size;
+
+    initGameState();
+
+    usleep(1000000/2);
+
+    for (int i = 0; i < clientSockets.size(); i++) {
+        messageToSend = "**gamestate";
+        sendData(messageToSend, clientSockets.at(i), buffer, size, clientAddresses.at(i));
+        }
+
+
+    while (!gameOver) {
+        usleep(1000000/2);
+
+        drawGrid(width, height, players, turnCount, pointsTaken);
+
+        messageToSend = "It's your turn "+ players.at(turnCount).getName();
+        sendData(messageToSend, clientSockets.at(turnCount), buffer, size, clientAddresses.at(turnCount));
+
+        messageRecieved = receiveData(clientSockets.at(turnCount), (char*)buffer, size, clientAddresses.at(turnCount));
+
+        vector<string> coordinates; 
+        stringstream stream(messageRecieved);
+        
+        string xCoordinateString;
+        string yCoordinateString;
+
+        getline(stream, xCoordinateString, ',');
+        getline(stream, yCoordinateString, ',');
+
+        int xCoord = stoi(xCoordinateString);
+        int yCoord = stoi(yCoordinateString);
+
+        location pp;
+
+        pp.setPos(players[turnCount].getXpos(), players[turnCount].getYpos());
+        pointsTaken.push_back(pp);
+
+        turnCount++;
+		// reset turn to first player
+		if (turnCount >= players.size())
+		{
+			turnCount = 0;
+		}
+		usedpoints++;
+		if (usedpoints == availablePoints)
+		{
+			gameOver = true;
+			drawGrid(width, height, players, turnCount, pointsTaken);
+            terminated = true;
+		}
+    }
 }
