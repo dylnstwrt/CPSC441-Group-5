@@ -18,6 +18,7 @@ const int BUFFERSIZE = 32;   // Size the message buffers
 
 void sendData (string, int, char[], int);
 string receiveData (int, char[], int&);
+bool playing = false;
 
 int main(int argc, char *argv[])
 {
@@ -130,6 +131,14 @@ int main(int argc, char *argv[])
         msgRecev = receiveData(sock, (char*)inBuffer, bytesRecv);
 
         std::cout << "Server: " << msgRecev << '\n';
+
+        while(msgRecev.compare(0,2,"**") == 0) {
+            char* tempBuff = new char[BUFFERSIZE];
+            msgRecev = receiveData(sock, (char*)tempBuff, bytesRecv);
+            cout << "Server: " << msgRecev << endl;
+            delete[] tempBuff; 
+        }
+        
 
         cout << "Please enter a message to be sent to the server ('logout' to terminate): ";
         fgets(outBuffer, BUFFERSIZE, stdin);
