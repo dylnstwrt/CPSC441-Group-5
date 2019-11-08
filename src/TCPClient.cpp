@@ -136,6 +136,7 @@ int main(int argc, char *argv[])
 
         std::cout << "Server: " << msgRecev << '\n';
 
+        // check for blocking message
         if (msgRecev.compare(0,2,"**") == 0) {
             playing = true;
         }
@@ -144,6 +145,7 @@ int main(int argc, char *argv[])
         // bandaid is using microsleeps to make sure only one message at a time would be waiting on the socket
         // otherwise we read multiple messages that have been sent, i.e. string = integer string + message + first n bits of next message.
 
+        // when playing is true and the last message recieved isn't the unblocking message (i.e. "It's your turn player #")
         while(msgRecev.compare(0,4,"It's") != 0 && playing) {
             char* tempBuff = new char[BUFFERSIZE];
             msgRecev = receiveData(sock, (char*)tempBuff, bytesRecv);
