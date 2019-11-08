@@ -20,6 +20,10 @@ void sendData (string, int, char[], int);
 string receiveData (int, char[], int&);
 bool playing = false;
 
+/**
+ * @author San and Dylan
+ **/
+
 int main(int argc, char *argv[])
 {
     int sock;                        // A socket descriptor
@@ -132,7 +136,17 @@ int main(int argc, char *argv[])
 
         std::cout << "Server: " << msgRecev << '\n';
 
-        while(msgRecev.compare(0,4,"It's") != 0) {
+        // check for blocking message
+        if (msgRecev.compare(0,2,"**") == 0) {
+            playing = true;
+        }
+        
+        // issues with amount being read from socket when multiple messages are queued
+        // bandaid is using microsleeps to make sure only one message at a time would be waiting on the socket
+        // otherwise we read multiple messages that have been sent, i.e. string = integer string + message + first n bits of next message.
+
+        // when playing is true and the last message recieved isn't the unblocking message (i.e. "It's your turn player #")
+        while(msgRecev.compare(0,4,"It's") != 0 && playing) {
             char* tempBuff = new char[BUFFERSIZE];
             msgRecev = receiveData(sock, (char*)tempBuff, bytesRecv);
             cout << "Server: " << msgRecev << endl;
@@ -149,6 +163,9 @@ int main(int argc, char *argv[])
     exit(0);
 }
 
+/**
+ * @author San
+ * */
 string receiveData (int sock, char* inBuffer, int& size)
 {
     // Receive the message from client
@@ -196,6 +213,9 @@ string receiveData (int sock, char* inBuffer, int& size)
     return currentMsg;
 }
 
+/**
+ * @author San
+ **/
 void sendData (string msgToSend, int sock, char* buffer, int size)
 {
     int bytesSent = 0;                   // Number of bytes sent
