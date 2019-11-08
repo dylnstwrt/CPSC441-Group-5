@@ -13,20 +13,39 @@
  #include <stdio.h>
  #include <fstream>
  #include <string>
+ #include "game.h"
 
 using namespace std;
 
+
+////////////////////////////////// Server Variables///////////////////////////////////////
 const int BUFFERSIZE = 32;   // Size the message buffers
 const int MAXPENDING = 10;    // Maximum pending connections
 
 fd_set recvSockSet;   // The set of descriptors for incoming connections
 int maxDesc = 0;      // The max descriptor
 bool terminated = false;
+//////////////////////////////////////////////////////////////////////////////////////////
 
+//////////////////////////////////Server Methods//////////////////////////////////////////
 void initServer (int&, int port);
 void processSockets (fd_set);
-void sendData (string, int, char[], int);
-string receiveData (int, char[], int&);
+void sendData (string, int, char[], int, string);
+string receiveData (int, char[], int&, string);
+//////////////////////////////////////////////////////////////////////////////////////////
+
+/////////////////////////////////Game Variables///////////////////////////////////////////
+bool gameOver = false;
+const int width = 7;
+const int heigth = 3;
+vector<player> players;
+vector<location> pointsTaken;
+//////////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////Game Methods////////////////////////////////////////////
+void drawGrid(int , int , vector<player> , int , vector<location>);
+void initGameState();
+//////////////////////////////////////////////////////////////////////////////////////////
 
 int main(int argc, char *argv[])
 {
@@ -167,20 +186,27 @@ void processSockets (fd_set readySocks)
         // Clear the buffers
         memset(buffer, 0, BUFFERSIZE);
 
+        struct sockaddr_in clientSocketInfo;
+        unsigned int clientSocketInfoSize = sizeof(clientSocketInfo);
+        memset(&clientSocketInfo, 0, clientSocketInfoSize);
+        getpeername(sock, (struct sockaddr *)&clientSocketInfo, &clientSocketInfoSize);
+
+        string clientIPv4 = inet_ntoa(clientSocketInfo.sin_addr);
+
         // Receive data from the client
         string message;
-        message = receiveData(sock, buffer, size);
+        message = receiveData(sock, buffer, size, clientIPv4);
 
-        // string newmessage = processMessage (message);
+        // do stuff here depending on state and IP;
 
         // Echo the message back to the client
-        sendData(message, sock, buffer, size);
+        sendData(message, sock, buffer, size, clientIPv4);
     }
 
     delete[] buffer;
 }
 
-string receiveData (int sock, char* inBuffer, int& size)
+string receiveData (int sock, char* inBuffer, int& size, string ip)
 {
     // Receive the message from client
     size = recv(sock, (char *) inBuffer, BUFFERSIZE, 0);
@@ -218,12 +244,12 @@ string receiveData (int sock, char* inBuffer, int& size)
       }
     }
     currentMsg.erase(currentMsg.find('\n'), 1);
-    cout << "Client Reciev: " << currentMsg << endl;
+    cout << "RecvFrom "<< ip << " : " << currentMsg << endl;
 
     return currentMsg;
 }
 
-void sendData (string msgToSend, int sock, char* buffer, int size)
+void sendData (string msgToSend, int sock, char* buffer, int size, string ip)
 {
     int bytesSent = 0;                   // Number of bytes sent
     //std::cout << msgToSend << '\n';
@@ -253,5 +279,86 @@ void sendData (string msgToSend, int sock, char* buffer, int size)
     */
 
 
-    cout << "Client Send: " << msgToSend << endl;
+    cout << "SentTo " << ip << " : " << msgToSend << endl;
+}
+
+void drawGrid(int width, int heigth, vector<player> players, int turn, vector<location> pointsTaken)
+{
+	for (int y = 0; y <= (heigth * 2) ; y++)
+	{
+		cout << "               ";
+		if (y % 2 == 0 )
+		{
+			for (int x = 0; x <= width * 2; x++)
+			{
+				// odds are space and evens are lines
+				if (x % 2 != 0)
+				{
+					cout << "-";
+				}
+				else
+				{
+					bool printed = false;
+					bool taken = false;
+
+					// plot taken points
+					for (int xx = 0; xx < pointsTaken.size(); xx++)
+					{
+						int ptx = pointsTaken[xx].getXpos();
+						int pty = pointsTaken[xx].getYpos();
+						ptx = ptx * 2;
+						pty = pty * 2;
+						if (x == ptx && y == pty)
+						{
+							// print @ for points that players have already been in
+							cout << "@";
+							printed = true;
+							taken = true;
+						}
+					}
+					
+					// plot current player points
+					if (taken == false)
+					{
+						for (int i = 0; i < players.size(); i++)
+						{
+							int px = players[i].getXpos();
+							int py = players[i].getYpos();
+							px = px * 2;
+							py = py * 2;
+							if (x == px && y == py)
+							{
+								cout << players[i].getPiece();
+								printed = true;
+							}
+						}					
+					
+					}
+										
+					if (printed == false)
+					{
+						cout << " ";
+					}
+				}
+			}
+			cout << endl;
+		}
+		else
+		{
+			for (int x = 0; x <= width * 2; x++)
+			{
+				// odds are space and evens are lines
+				if (x % 2 == 0)
+				{
+					cout << "|";
+				}
+				else
+				{
+					cout << " ";
+				}
+			}
+			cout << " " << endl;
+		}
+		
+	}
 }
