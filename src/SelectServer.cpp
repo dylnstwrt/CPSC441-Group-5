@@ -227,8 +227,8 @@ void processSockets (fd_set readySocks)
           if (messageReceived.compare("start")==0)
           {
               votes++;
-              messageToSend = "**wait for start";
-              if (clientAddresses.size() == votes)
+              messageToSend = "**wait for start**";
+              if (clientAddresses.size() == votes && clientAddresses.size() > 1)
               {
                   playing = true;
                   /* for (int i = 0; i < clientSockets.size(); i++) {
