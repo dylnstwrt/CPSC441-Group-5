@@ -1,44 +1,32 @@
 /*
  * Modified version of the example code given by Mea Wang for CPSC441.
- * @author Group 5: Dylan Stewart, Nicolas Urrego, Sandesh Regmi, and Wentao aka. Chris Sun
+ * @author Group 5: Dylan Stewart, Nicolas Urrego, Sandesh Regmi, and Wentao Sun
  */
 
- #include <iostream>
- #include <sys/socket.h> // for socket(), connect(), send(), and recv()
- #include <arpa/inet.h>  // for sockaddr_in and inet_addr()
- #include <stdlib.h>     // for atoi() and exit()
- #include <string.h>     // for memset()
- #include <unistd.h>     // for close()
- #include <stdio.h>
- #include <fstream>
- #include <string>
- #include <sstream>
- #include "game.h"       // for player, and location classes. 
+#include <iostream>
+#include <sys/socket.h> // for socket(), connect(), send(), and recv()
+#include <arpa/inet.h>  // for sockaddr_in and inet_addr()
+#include <stdlib.h>     // for atoi() and exit()
+#include <string.h>     // for memset()
+#include <unistd.h>     // for close()
+#include <stdio.h>
+#include <fstream>
+#include <string>
+#include <sstream>
+#include "gamestate.h"
+
+const int BUFFERSIZE = 32;    // Size the message buffers
+const int MAXPENDING = 10;    // Maximum pending connections
+
 
 using namespace std;
 
 /////////////////////////////////Game Variables///////////////////////////////////////////
-bool gameOver = false;
-const int width = 7;
-const int height = 3;
-vector<player> players;
-vector<location> pointsTaken;
-
-int availablePoints = (width+1) * (height+1);
-int usedpoints = 4;
-unsigned int turnCount = 0;
-
-vector <string> playerSymbols ({"*", "x", "K", "G"});
-vector <int> startingXCoordinates ({0, width, width, 0});
-vector <int> startingYCoordinates ({0, height, 0, height});
-
-int turnsMade = 0;
+struct GameState state[3];
 //////////////////////////////////////////////////////////////////////////////////////////
 
 
 ////////////////////////////////// Server Variables///////////////////////////////////////
-const int BUFFERSIZE = 32;    // Size the message buffers
-const int MAXPENDING = 10;    // Maximum pending connections
 
 fd_set recvSockSet;   // The set of descriptors for incoming connections
 int maxDesc = 0;      // The max descriptor
@@ -58,7 +46,6 @@ string receiveData (int, char[], int&, string);
 //////////////////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////Game Methods////////////////////////////////////////////
-string drawGrid(int , int , vector<player> , int , vector<location>);
 void initGameState();
 void playGame();
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -244,11 +231,6 @@ void processSockets (fd_set readySocks)
               if (clientAddresses.size() == votes /* && clientAddresses.size() > 1 */)
               {
                   playing = true;
-                  /* for (int i = 0; i < clientSockets.size(); i++) {
-                      initGameState();
-                      messageToSend = "**gamestate";
-                      sendData(messageToSend, clientSockets.at(i), buffer, size, clientAddresses.at(i));
-                  } */
               }
           } else {
               messageToSend = messageReceived;
@@ -268,20 +250,6 @@ string receiveData (int sock, char* inBuffer, int& size, string ip)
 {
     // Receive the message from client
     size = recv(sock, (char *) inBuffer, BUFFERSIZE, 0);
-
-    // Check for connection close (0) or errors (< 0)
-    /*
-    if (size <= 0)
-    {
-        cout << "recv() failed, or the connection is closed. " << endl;
-        FD_CLR(sock, &recvSockSet);
-
-        // Update the max descriptor
-        while (FD_ISSET(maxDesc, &recvSockSet) == false)
-              maxDesc -= 1;
-        return;
-    }
-    */
 
     string InputMsgSizeInitial = string(inBuffer);
     int InputMsgSize = stoi(InputMsgSizeInitial);
@@ -344,115 +312,17 @@ void sendData (string msgToSend, int sock, char* buffer, int size, string ip)
 }
 
 /* 
-    @author Nico, edited by Dylan
- */
-string drawGrid(int width, int height, vector<player> players, int turn, vector<location> pointsTaken)
-{   
-    stringstream formatString;
-    //cout<< endl;
-    formatString << endl;
-	for (int y = 0; y <= (height * 2) ; y++)
-	{
-		//cout<< "               ";
-        formatString << "               ";
-		if (y % 2 == 0 )
-		{
-			for (int x = 0; x <= width * 2; x++)
-			{
-				// odds are space and evens are lines
-				if (x % 2 != 0)
-				{
-					//cout<< "-";
-                    formatString  << "-";
-				}
-				else
-				{
-					bool printed = false;
-					bool taken = false;
-
-					// plot taken points
-					for (int xx = 0; xx < pointsTaken.size(); xx++)
-					{
-						int ptx = pointsTaken[xx].getXpos();
-						int pty = pointsTaken[xx].getYpos();
-						ptx = ptx * 2;
-						pty = pty * 2;
-						if (x == ptx && y == pty)
-						{
-							// print @ for points that players have already been in
-							//cout<< "@";
-                            formatString << "@";
-							printed = true;
-							taken = true;
-						}
-					}
-					
-					// plot current player points
-					if (taken == false)
-					{
-						for (int i = 0; i < players.size(); i++)
-						{
-							int px = players[i].getXpos();
-							int py = players[i].getYpos();
-							px = px * 2;
-							py = py * 2;
-							if (x == px && y == py)
-							{
-								//cout<< players[i].getPiece();
-                                formatString << players[i].getPiece();
-								printed = true;
-							}
-						}					
-					
-					}
-										
-					if (printed == false)
-					{
-						//cout<< " ";
-                        formatString << " ";
-					}
-				}
-			}
-			//cout<< endl;
-            formatString << endl;
-		}
-		else
-		{
-			for (int x = 0; x <= width * 2; x++)
-			{
-				// odds are space and evens are lines
-				if (x % 2 == 0)
-				{
-					//cout<< "|";
-                    formatString << "|";
-				}
-				else
-				{
-					//cout<< " ";
-                    formatString << " ";
-				}
-			}
-			//cout<< " " << endl;
-            formatString << " " << endl;
-		}
-		
-	}
-
-    return formatString.str(); 
-}
-
-/* 
     @author Dylan
  */
 void initGameState() {
     for (int i = 0; i < clientAddresses.size(); i++) {
         player toCreate;
         string playerName = "Player " + to_string(i+1);
-        toCreate.setPiece(playerSymbols.at(i));
-        toCreate.setPos(startingXCoordinates.at(i), startingYCoordinates.at(i));
+        toCreate.setPiece(state[0].playerSymbols[i]);
+        toCreate.setPos(state[0].startingXCoordinates[i], state[0].startingYCoordinates[i]);
         toCreate.setName(playerName);
 
-        players.push_back(toCreate);
+        state[0].players.push_back(toCreate);
         
     }
 }
@@ -471,25 +341,25 @@ void playGame(){
     usleep(1000000/2);
 
     for (int i = 0; i < clientSockets.size(); i++) {
-        messageToSend = drawGrid(width, height, players, turnCount, pointsTaken);
+        messageToSend = state[0].drawGrid();
         sendData(messageToSend, clientSockets.at(i), buffer, size, clientAddresses.at(i));
         }
 
 
-    while (!gameOver) {
+    while (!state[0].gameOver) {
         // allow client to recieve message before piling another one on the recvsock causing issues with current protocol
         // more of an issue if first person connected is the last one to ready up.
         usleep(1000000/2);
 
         // draw grid on server
-        drawGrid(width, height, players, turnCount, pointsTaken);
+        state[0].drawGrid();
 
         // unblock client who's supposed to make a turn
-        messageToSend = "It's your turn "+ players.at(turnCount).getName();
-        sendData(messageToSend, clientSockets.at(turnCount), buffer, size, clientAddresses.at(turnCount));
+        messageToSend = "It's your turn "+ state[0].players.at(state[0].turnCount).getName();
+        sendData(messageToSend, clientSockets.at(state[0].turnCount), buffer, size, clientAddresses.at(state[0].turnCount));
 
         // wait for client's response
-        messageRecieved = receiveData(clientSockets.at(turnCount), (char*)buffer, size, clientAddresses.at(turnCount));
+        messageRecieved = receiveData(clientSockets.at(state[0].turnCount), (char*)buffer, size, clientAddresses.at(state[0].turnCount));
 
         // for tokenizing message from client
         vector<string> coordinates; 
@@ -508,28 +378,28 @@ void playGame(){
         location pp;
 
         // set previous position of current client as taken in game state
-        pp.setPos(players[turnCount].getXpos(), players[turnCount].getYpos());
-        pointsTaken.push_back(pp);
+        pp.setPos(state[0].players[state[0].turnCount].getXpos(), state[0].players[state[0].turnCount].getYpos());
+        state[0].pointsTaken.push_back(pp);
 
         // update clients position to input
-        players[turnCount].setXpos(xCoord);
-        players[turnCount].setYpos(yCoord);
+        state[0].players[state[0].turnCount].setXpos(xCoord);
+        state[0].players[state[0].turnCount].setYpos(yCoord);
 
         // change turn
-        turnCount++;
+        state[0].turnCount++;
 		// reset turn to first player
-		if (turnCount >= players.size())
+		if (state[0].turnCount >= state[0].players.size())
 		{
-			turnCount = 0;
+			state[0].turnCount = 0;
 		}
-		usedpoints++;
-		if (usedpoints == availablePoints)
+		state[0].usedpoints++;
+		if (state[0].usedpoints == state[0].availablePoints)
 		{
-			gameOver = true;
-			drawGrid(width, height, players, turnCount, pointsTaken);
-            terminated = true;
+			state[0].gameOver = true;
+			state[0].drawGrid();
+    		        terminated = true;
 		} else {
-            string toSend = drawGrid(width, height, players, turnCount, pointsTaken);
+            string toSend = state[0].drawGrid();
             for (int i = 0; i < clientSockets.size(); ++i){
                 sendData(toSend, clientSockets.at(i), buffer, size, clientAddresses.at(i));
             }
