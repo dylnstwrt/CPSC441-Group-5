@@ -32,7 +32,8 @@ fd_set recvSockSet;   // The set of descriptors for incoming connections
 int maxDesc = 0;      // The max descriptor
 bool terminated = false; // for loop in main
 vector<string> clientAddresses; // vector for client IP strings, added when client-server connection is established
-int votes = 0;        // used to count how many people are ready to join game when in lobby
+int curClientRoom[6] = {0,0,0,0,0,0};
+
 bool playing = false; // when false, server is considered "in lobby"
 
 vector <int> clientSockets; 
@@ -46,8 +47,8 @@ string receiveData (int, char[], int&, string);
 //////////////////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////Game Methods////////////////////////////////////////////
-void initGameState();
-void playGame();
+void createPlayer(int roomNo, int index);
+void playGame(int roomNo);
 //////////////////////////////////////////////////////////////////////////////////////////
 
 /* 
@@ -81,7 +82,7 @@ int main(int argc, char *argv[])
     maxDesc = max(maxDesc, serverSock);
 
     // Run the server until a "terminate" command is received)
-    while (!terminated)
+    while(!terminated)
     {
         // copy the receive descriptors to the working set
         memcpy(&tempRecvSockSet, &recvSockSet, sizeof(recvSockSet));
@@ -120,9 +121,9 @@ int main(int argc, char *argv[])
         // Then process messages waiting at each ready socket
         else
             processSockets(tempRecvSockSet);
-            if (playing) {
+            if (state[0].playing) {
                 // don't look for more connections.
-                playGame();
+                playGame(0);
             }
     }
 
@@ -194,53 +195,68 @@ void initServer(int& serverSock, int port)
  */
 void processSockets (fd_set readySocks)
 {
-    char* buffer = new char[BUFFERSIZE];       // Buffer for the message from the server
-    int size;                                    // Actual size of the message
+	char* buffer = new char[BUFFERSIZE];       // Buffer for the message from the server
+    	int size;                                    // Actual size of the message
+    	// Loop through the descriptors and process
+    	for (int sock = 0; sock <= maxDesc; sock++)
+    	{
+        	if (!FD_ISSET(sock, &readySocks))
+            	continue;
 
-    // Loop through the descriptors and process
-    for (int sock = 0; sock <= maxDesc; sock++)
-    {
-        if (!FD_ISSET(sock, &readySocks))
-            continue;
+        	// Clear the buffers
+        	memset(buffer, 0, BUFFERSIZE);
 
-        // Clear the buffers
-        memset(buffer, 0, BUFFERSIZE);
+      	  	// create struct, populate struct with client information, use IP address and reference clientAddresses vector for identification
+        	struct sockaddr_in clientSocketInfo;
+        	unsigned int clientSocketInfoSize = sizeof(clientSocketInfo);
+        	memset(&clientSocketInfo, 0, clientSocketInfoSize);
+        	getpeername(sock, (struct sockaddr *)&clientSocketInfo, &clientSocketInfoSize);
 
-        // create struct, populate struct with client information, use IP address and reference clientAddresses vector for identification
-        struct sockaddr_in clientSocketInfo;
-        unsigned int clientSocketInfoSize = sizeof(clientSocketInfo);
-        memset(&clientSocketInfo, 0, clientSocketInfoSize);
-        getpeername(sock, (struct sockaddr *)&clientSocketInfo, &clientSocketInfoSize);
+        	string clientIPv4 = inet_ntoa(clientSocketInfo.sin_addr);
 
-        string clientIPv4 = inet_ntoa(clientSocketInfo.sin_addr);
+        	// Receive data from the cli// do stuff here depending on state and IP;ent
+        	string messageReceived;
+        	messageReceived = receiveData(sock, buffer, size, clientIPv4);
+		string messageToSend = messageReceived;
 
-        // Receive data from the cli// do stuff here depending on state and IP;ent
-        string messageReceived;
-        string messageToSend;
-        messageReceived = receiveData(sock, buffer, size, clientIPv4);
-        
+		int index;
+		for(int i = 0; i < clientAddresses.size(); i++)
+		{
+			if(clientIPv4.compare(clientAddresses.at(i)) == 0)
+			{
+				index = i;
+				break;
+			}
+		}
+		int roomNo = curClientRoom[index] - 1;
+		if(roomNo == -1)
+		{
+			if(messageReceived.substr(0,5).compare("join ") == 0)
+			{
+				int roomNumber = stoi(messageReceived.substr(5, 1));
+				curClientRoom[index] = roomNumber;
+				createPlayer(roomNumber - 1, index);
 
-        if (!playing)
-        {
-          if (messageReceived.compare("start")==0)
-          {
-              votes++;
-              // ** indicates on that the game is going to start as soon as votes == people connected
-              messageToSend = "**wait for start**";
-              // only worrying about getting the game started for at least the one person.
-              if (clientAddresses.size() == votes /* && clientAddresses.size() > 1 */)
-              {
-                  playing = true;
-              }
-          } else {
-              messageToSend = messageReceived;
-          }
-        }
-        sendData(messageToSend, sock, buffer, size, clientIPv4);
+				printf("%dth player joined room %d\n", index, curClientRoom[index]);
+			}
+		}
+		else
+		{
+        		if (messageReceived.compare("start")==0)
+          		{
+         			state[roomNo].votes++;
+          	    		messageToSend = "**wait for start**";
+      				// only worrying about getting the game started for at least the one person.
+      		 		if (state[roomNo].players.size() == state[roomNo].votes)
+      		 		{
+              				state[roomNo].playing = true;
+          			}
+			}
+		}
 
-    }
-
-    delete[] buffer;
+		sendData(messageToSend, sock, buffer, size, clientIPv4);
+    	}
+	delete[] buffer;
 }
 
 /* 
@@ -248,31 +264,34 @@ void processSockets (fd_set readySocks)
  */
 string receiveData (int sock, char* inBuffer, int& size, string ip)
 {
-    // Receive the message from client
-    size = recv(sock, (char *) inBuffer, BUFFERSIZE, 0);
+	// Receive the message from client
+    	size = recv(sock, (char *) inBuffer, BUFFERSIZE, 0);
 
-    string InputMsgSizeInitial = string(inBuffer);
-    int InputMsgSize = stoi(InputMsgSizeInitial);
-    //std::cout << InputMsgSizeInitial << " " << InputMsgSize << '\n';
-    memset(inBuffer, 0, BUFFERSIZE);
+    	string InputMsgSizeInitial = string(inBuffer);
+    	int InputMsgSize = stoi(InputMsgSizeInitial);
+    	//std::cout << InputMsgSizeInitial << " " << InputMsgSize << '\n';
+    	memset(inBuffer, 0, BUFFERSIZE);
 
-    string currentMsg = "";
-    while(InputMsgSize != 0){
-      if(InputMsgSize >= BUFFERSIZE){
-        InputMsgSize -= recv(sock, (char *) inBuffer, BUFFERSIZE, 0);
-        currentMsg += string(inBuffer);
-        memset(inBuffer, 0, BUFFERSIZE);
-      }
-      else{
-        InputMsgSize -= recv(sock, (char *) inBuffer, InputMsgSize, 0);
-        currentMsg += string(inBuffer);
-        memset(inBuffer, 0, BUFFERSIZE);
-      }
-    }
-    currentMsg.erase(currentMsg.find('\n'), 1);
-    cout << "RecvFrom "<< ip << " : " << currentMsg << endl;
+    	string currentMsg = "";
+   	while(InputMsgSize != 0)
+	{
+      		if(InputMsgSize >= BUFFERSIZE)
+		{
+        		InputMsgSize -= recv(sock, (char *) inBuffer, BUFFERSIZE, 0);
+        		currentMsg += string(inBuffer);
+        		memset(inBuffer, 0, BUFFERSIZE);
+      		}
+      		else
+		{
+        		InputMsgSize -= recv(sock, (char *) inBuffer, InputMsgSize, 0);
+       			currentMsg += string(inBuffer);
+        		memset(inBuffer, 0, BUFFERSIZE);
+      		}
+    	}
+    	currentMsg.erase(currentMsg.find('\n'), 1);
+    	cout << "RecvFrom "<< ip << " : " << currentMsg << endl;
 
-    return currentMsg;
+    	return currentMsg;
 }
 
 /* 
@@ -314,95 +333,102 @@ void sendData (string msgToSend, int sock, char* buffer, int size, string ip)
 /* 
     @author Dylan
  */
-void initGameState() {
-    for (int i = 0; i < clientAddresses.size(); i++) {
-        player toCreate;
-        string playerName = "Player " + to_string(i+1);
-        toCreate.setPiece(state[0].playerSymbols[i]);
-        toCreate.setPos(state[0].startingXCoordinates[i], state[0].startingYCoordinates[i]);
-        toCreate.setName(playerName);
+void createPlayer(int roomNo, int index)
+{
+	{
+		int i = state[roomNo].players.size();
+        	player toCreate;
+        	string playerName = "Player " + to_string(state[roomNo].players.size()+1);
+        	toCreate.setPiece(state[roomNo].playerSymbols[i]);
+        	toCreate.setPos(state[roomNo].startingXCoordinates[i], state[roomNo].startingYCoordinates[i]);
+        	toCreate.setName(playerName);
+		toCreate.setIndex(index);
 
-        state[0].players.push_back(toCreate);
-        
-    }
+        	state[roomNo].addPlayer(toCreate);
+    	}
 }
 
 /* 
     @author Dylan. Game loop modelled after main() in misc/main.cpp; which was written by Nico
  */
-void playGame(){
+void playGame(int roomNo){
 
-    string messageToSend, messageRecieved;
-    char* buffer = new char[BUFFERSIZE];
-    int size;
+	string messageToSend, messageRecieved;
+	char* buffer = new char[BUFFERSIZE];
+	int size;
 
-    initGameState();
+    	usleep(1000000/2);
 
-    usleep(1000000/2);
-
-    for (int i = 0; i < clientSockets.size(); i++) {
-        messageToSend = state[0].drawGrid();
-        sendData(messageToSend, clientSockets.at(i), buffer, size, clientAddresses.at(i));
-        }
-
-
-    while (!state[0].gameOver) {
-        // allow client to recieve message before piling another one on the recvsock causing issues with current protocol
-        // more of an issue if first person connected is the last one to ready up.
-        usleep(1000000/2);
-
-        // draw grid on server
-        state[0].drawGrid();
-
-        // unblock client who's supposed to make a turn
-        messageToSend = "It's your turn "+ state[0].players.at(state[0].turnCount).getName();
-        sendData(messageToSend, clientSockets.at(state[0].turnCount), buffer, size, clientAddresses.at(state[0].turnCount));
-
-        // wait for client's response
-        messageRecieved = receiveData(clientSockets.at(state[0].turnCount), (char*)buffer, size, clientAddresses.at(state[0].turnCount));
-
-        // for tokenizing message from client
-        vector<string> coordinates; 
-        stringstream stream(messageRecieved);
-        
-        string xCoordinateString;
-        string yCoordinateString;
-
-        getline(stream, xCoordinateString, ',');
-        getline(stream, yCoordinateString, ',');
-
-        // parse int from strings
-        int xCoord = stoi(xCoordinateString);
-        int yCoord = stoi(yCoordinateString);
-
-        location pp;
-
-        // set previous position of current client as taken in game state
-        pp.setPos(state[0].players[state[0].turnCount].getXpos(), state[0].players[state[0].turnCount].getYpos());
-        state[0].pointsTaken.push_back(pp);
-
-        // update clients position to input
-        state[0].players[state[0].turnCount].setXpos(xCoord);
-        state[0].players[state[0].turnCount].setYpos(yCoord);
-
-        // change turn
-        state[0].turnCount++;
-		// reset turn to first player
-		if (state[0].turnCount >= state[0].players.size())
+    	for (int i = 0; i < clientSockets.size(); i++)
+	{
+		if(curClientRoom[i] == roomNo + 1)
 		{
-			state[0].turnCount = 0;
+        		messageToSend = state[roomNo].drawGrid();
+        		sendData(messageToSend, clientSockets.at(i), buffer, size, clientAddresses.at(i));
 		}
-		state[0].usedpoints++;
-		if (state[0].usedpoints == state[0].availablePoints)
-		{
-			state[0].gameOver = true;
-			state[0].drawGrid();
-    		        terminated = true;
-		} else {
-            string toSend = state[0].drawGrid();
-            for (int i = 0; i < clientSockets.size(); ++i){
-                sendData(toSend, clientSockets.at(i), buffer, size, clientAddresses.at(i));
-            }
         }
-    }
+
+
+    	while (state[roomNo].gameOver == false)
+	{
+		int turnCount = state[roomNo].turnCount;
+		player turnPlayer = state[roomNo].players.at(turnCount);
+		int index = turnPlayer.getIndex();
+		// allow client to recieve message before piling another one on the recvsock causing issues with current protocol
+		// more of an issue if first person connected is the last one to ready up.
+        	usleep(1000000/2);
+
+        	// unblock client who's supposed to make a turn
+        	messageToSend = "It's your turn " + turnPlayer.getName();
+        	sendData(messageToSend, clientSockets.at(index), buffer, size, clientAddresses.at(index));
+
+        	// wait for client's response
+        	messageRecieved = receiveData(clientSockets.at(index), (char*)buffer, size, clientAddresses.at(index));
+
+        	// for tokenizing message from client
+        	vector<string> coordinates;
+        	stringstream stream(messageRecieved);
+        
+        	string xCoordinateString;
+        	string yCoordinateString;
+
+        	getline(stream, xCoordinateString, ',');
+        	getline(stream, yCoordinateString, ',');
+
+        	// parse int from strings
+        	int xCoord = stoi(xCoordinateString);
+        	int yCoord = stoi(yCoordinateString);
+
+		location pp;
+
+        	// set previous position of current client as taken in game state
+        	pp.setPos(turnPlayer.getXpos(), turnPlayer.getYpos());
+        	state[roomNo].pointsTaken.push_back(pp);
+
+        	// update clients position to input
+        	state[roomNo].players.at(turnCount).setXpos(xCoord);
+        	state[roomNo].players.at(turnCount).setYpos(yCoord);
+
+        	// change turn
+        	state[roomNo].turnCount++;
+		state[roomNo].turnCount = state[roomNo].turnCount%state[roomNo].noPlayer;
+		state[roomNo].usedpoints++;
+		if (state[roomNo].usedpoints == state[roomNo].availablePoints)
+		{
+			state[roomNo].gameOver = true;
+			state[roomNo].drawGrid();
+    		        terminated = true;
+		}
+		else
+		{
+            		string toSend = state[roomNo].drawGrid();
+            		for (int i = 0; i < clientSockets.size(); i++)
+			{
+				if(curClientRoom[i] == roomNo + 1)
+				{
+                			sendData(toSend, clientSockets.at(i), buffer, size, clientAddresses.at(i));
+				}
+			}
+        	}
+    	}
 }

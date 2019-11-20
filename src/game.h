@@ -14,6 +14,7 @@ class player {
 	int points;
 	string piece;
 	string playerName;
+	int index;
 public:
 	// set name
 	void setName(string n)
@@ -67,6 +68,14 @@ public:
 	string getPiece()
 	{
 		return piece;
+	}
+	void setIndex(int i)
+	{
+		index = i;
+	}
+	int getIndex()
+	{
+		return index;
 	}
 };
 class location {

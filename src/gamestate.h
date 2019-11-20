@@ -9,6 +9,7 @@ struct GameState
 	const int HEIGHT = 3;
 	bool gameOver = false;
 	vector<player> players;
+	int noPlayer = 0;
 	vector<location> pointsTaken;
 
 	int availablePoints = (WIDTH+1) * (HEIGHT+1);
@@ -20,7 +21,25 @@ struct GameState
 	int startingYCoordinates[4] = {0, HEIGHT, 0, HEIGHT};
 
 	int turnsMade = 0;
+	
+	bool playing = false;
+	int votes = 0;
 
+	void reset()
+	{
+		gameOver = false;
+		players.clear();
+		pointsTaken.clear();
+		turnsMade = 0;
+		playing = false;
+		votes = 0;
+		noPlayer = 0;
+	}
+	void addPlayer(player p)
+	{
+		players.push_back(p);
+		noPlayer++;
+	}
 	string drawGrid()
 	{   
    	 	stringstream formatString;
@@ -56,11 +75,11 @@ struct GameState
 						{
 							for (int i = 0; i < players.size(); i++)
 							{
-								int px = players[i].getXpos()*2;
-								int py = players[i].getYpos()*2;
+								int px = players.at(i).getXpos()*2;
+								int py = players.at(i).getYpos()*2;
 								if (x == px && y == py)
 								{
-                                					formatString << players[i].getPiece();
+                                					formatString << players.at(i).getPiece();
 									printed = true;
 								}
 							}
