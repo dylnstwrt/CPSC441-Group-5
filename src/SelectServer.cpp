@@ -253,8 +253,8 @@ void processSockets (fd_set readySocks)
 				if (state[roomNo].noPlayer == state[roomNo].votes)
       				{
 					startGame(roomNo);
-					continue;
 				}
+				continue;
 			}
 		}
 		sendData(messageToSend, sock, buffer, clientIPv4);
@@ -359,7 +359,8 @@ void startGame(int roomNo)
 	int index = state[roomNo].turnCount;
 	player turnPlayer = state[roomNo].players.at(index);
 	string send = "It's your turn " + turnPlayer.getName();
-	sendData(send, clientSockets.at(index), buffer, clientAddresses.at(index));
+	int i = turnPlayer.getIndex();
+	sendData(send, clientSockets.at(i), buffer, clientAddresses.at(i));
 }
 
 /* 
