@@ -52,18 +52,19 @@ struct GameState
 		bool winningSpot = false;
 		while (!winningSpot)
 		{
-		int wX = rand() % (WIDTH + 1);
-		int wY = rand() % (HEIGHT + 1);
-		// Check that the winning spot is not at the starting points of the players
-		if ((wX == 0 && wY == 0) || (wX == 0 && wY == HEIGHT) || (wX == WIDTH && wY == HEIGHT) || (wX == WIDTH && wY == 0))
-		{
-			winningSpot = false;
-		}
-		else
-		{
-			winningSpot = true;
-			hiddenSpot.setPos(wX, wY);
-		}
+			srand(time(NULL));
+			int wX = (rand() % WIDTH) + 1;
+			int wY = (rand() % HEIGHT) + 1;
+			// Check that the winning spot is not at the starting points of the players
+			if ((wX == 0 && wY == 0) || (wX == 0 && wY == HEIGHT) || (wX == WIDTH && wY == HEIGHT) || (wX == WIDTH && wY == 0))
+			{
+				winningSpot = false;
+			}
+			else
+			{
+				winningSpot = true;
+				hiddenSpot.setPos(wX, wY);
+			}
 		}
 	}
 	
