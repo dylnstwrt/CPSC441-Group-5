@@ -74,7 +74,7 @@ int main(int argc, char* argv[])
 
 	// Initilize the server
 	initServer(serverSock, atoi(argv[1]));
-
+	cout << "Server sock init\n";
 	// Clear the socket sets
 	FD_ZERO(&recvSockSet);
 
@@ -83,6 +83,7 @@ int main(int argc, char* argv[])
 	maxDesc = max(maxDesc, serverSock);
 
 	// Run the server until a "terminate" command is received)
+	cout << "Running\n";
 	while (!terminated)
 	{
 		// copy the receive descriptors to the working set
@@ -306,7 +307,7 @@ void sendData(string msgToSend, int sock, char* buffer, string ip)
 	//std::cout << msgToSend << '\n';
 	//msgToSend = "This is a message testing getting data";
 	int sizeMsgToSend = msgToSend.length();
-	string initialMsgToSend = std::to_string(sizeMsgToSend); // initial message = size of message to send
+	string initialMsgToSend = to_string(sizeMsgToSend); // initial message = size of message to send
 	int sizeInitialMsgToSend = initialMsgToSend.length(); // size of initial message
 	char* dataSending = new char[sizeInitialMsgToSend]; // buffer has to be size of the message to be sending first.
 	strcpy(dataSending, initialMsgToSend.c_str()); // copying size of message into buffer
@@ -341,9 +342,11 @@ void createPlayer(int roomNo, int index)
 void startGame(int roomNo)
 {
 	char* buffer = new char[BUFFERSIZE];
+	state[roomNo].generateSpot();
+	cout << "Hidden Spot: " << state[roomNo].hiddenSpot.getXpos() << "," << state[roomNo].hiddenSpot.getYpos(); 
 
 	usleep(1000000 / 2);
-
+	
 	for (int i = 0; i < clientSockets.size(); i++)
 	{
 		if (curClientRoom[i] == roomNo + 1)
