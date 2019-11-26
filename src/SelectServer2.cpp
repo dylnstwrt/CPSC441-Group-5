@@ -13,7 +13,7 @@
 #include <fstream>
 #include <string>
 #include <sstream>
-#include "gamestate.h"
+#include "gamestate2.h"
 
 const int BUFFERSIZE = 32;    // Size the message buffers
 const int MAXPENDING = 10;    // Maximum pending connections

@@ -47,13 +47,15 @@ struct GameState
 		noPlayer++;
 	}
 	// Generating hidding winning spot
-	bool winningSpot = false;
-	while (!winningSpot)
+	void generateSpot()
 	{
-		int wX = rand() % (width + 1);
-		int wY = rand() % (heigth + 1);
+		bool winningSpot = false;
+		while (!winningSpot)
+		{
+		int wX = rand() % (WIDTH + 1);
+		int wY = rand() % (HEIGHT + 1);
 		// Check that the winning spot is not at the starting points of the players
-		if ((wX == 0 && wY == 0) || (wX == 0 && wY == heigth) || (wX == width && wY == heigth) || (wX == width && wY == 0))
+		if ((wX == 0 && wY == 0) || (wX == 0 && wY == HEIGHT) || (wX == WIDTH && wY == HEIGHT) || (wX == WIDTH && wY == 0))
 		{
 			winningSpot = false;
 		}
@@ -61,6 +63,7 @@ struct GameState
 		{
 			winningSpot = true;
 			hiddenSpot.setPos(wX, wY);
+		}
 		}
 	}
 	
