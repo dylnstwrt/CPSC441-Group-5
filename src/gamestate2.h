@@ -34,6 +34,7 @@ struct GameState
 	void reset()
 	{
 		gameOver = false;
+		winMsg = false;
 		players.clear();
 		pointsTaken.clear();
 		turnsMade = 0;
@@ -52,6 +53,7 @@ struct GameState
 		bool winningSpot = false;
 		while (!winningSpot)
 		{
+			// change srand seed if you want a constant value
 			srand(time(NULL));
 			int wX = (rand() % WIDTH) + 1;
 			int wY = (rand() % HEIGHT) + 1;
@@ -149,7 +151,7 @@ struct GameState
 				formatString << " " << endl;
 			}
 		}
-		if (winMsg = true)
+		if (winMsg)
 		{
 			formatString << "Player: " << WinningPlayer.getName() << " has won" << endl;
 		}
