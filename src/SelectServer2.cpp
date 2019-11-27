@@ -50,6 +50,7 @@ string receiveData(int, char[], int&, string);
 void createPlayer(int, int);
 void startGame(int);
 void playGame(int, string);
+void endGame(int);
 //////////////////////////////////////////////////////////////////////////////////////////
 
 /*
@@ -184,6 +185,8 @@ void initServer(int& serverSock, int port)
 		cout << "listen() failed" << endl;
 		exit(1);
 	}
+	
+	cout << "Listening on port " << port << "\n";
 }
 
 /*
@@ -325,6 +328,7 @@ void sendData(string msgToSend, int sock, char* buffer, string ip)
 
 /*
 	@author Dylan
+	
  */
 void createPlayer(int roomNo, int index)
 {
@@ -343,7 +347,7 @@ void startGame(int roomNo)
 {
 	char* buffer = new char[BUFFERSIZE];
 	state[roomNo].generateSpot();
-	cout << "Hidden Spot: " << state[roomNo].hiddenSpot.getXpos() << "," << state[roomNo].hiddenSpot.getYpos(); 
+	cout << "Hidden Spot: " << state[roomNo].hiddenSpot.getXpos() << "," << state[roomNo].hiddenSpot.getYpos() << "\n"; 
 
 	usleep(1000000 / 2);
 	
@@ -366,8 +370,9 @@ void startGame(int roomNo)
 	sendData(send, clientSockets.at(i), buffer, clientAddresses.at(i));
 }
 
-/*
+/**
 	@author Dylan. Game loop modelled after main() in misc/main.cpp; which was written by Nico
+	@author modified by Chris
  */
 void playGame(int roomNo, string messageRecieved)
 {
@@ -419,7 +424,7 @@ void playGame(int roomNo, string messageRecieved)
 	{
 		state[roomNo].gameOver = true;
 		state[roomNo].drawGrid();
-		terminated = true;
+		endGame(roomNo);
 	}
 	else
 	{
@@ -435,4 +440,28 @@ void playGame(int roomNo, string messageRecieved)
 		messageToSend = "It's your turn " + turnPlayer.getName();
 		sendData(messageToSend, clientSockets.at(index), buffer, clientAddresses.at(index));
 	}
+}
+
+/**
+ * @brief used to clear the gamestate instance of the completed game in the states array
+ * 
+ * @param roomNo 
+ * @author Dylan
+ */
+void endGame(int roomNo){
+	string toSend = state[roomNo].drawGrid();
+	state[roomNo].reset();
+		for (int i = 0; i < clientSockets.size(); i++)
+		{
+			if (curClientRoom[i] == roomNo + 1)
+			{
+				char* buffer = new char[BUFFERSIZE];
+				sendData(toSend, clientSockets.at(i), buffer, clientAddresses.at(i));
+				usleep(1000000 / 2);
+				sendData("!Returned to Lobby!", clientSockets.at(i), buffer, clientAddresses.at(i));
+				curClientRoom[i] = 0;
+				delete[] buffer;
+			}
+		}
+
 }
