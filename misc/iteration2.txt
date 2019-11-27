@@ -1,0 +1,3 @@
+game rooms
+dealing with players joining / disconnecting
+game win conditions
