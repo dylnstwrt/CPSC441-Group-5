@@ -52,6 +52,7 @@ void createPlayer(int, int);
 void deletePlayer(int, int);
 void startGame(int);
 void playGame(int, string);
+void endGame(int);
 //////////////////////////////////////////////////////////////////////////////////////////
 
 /* 
@@ -186,6 +187,7 @@ void initServer(int& serverSock, int port)
         cout << "listen() failed" << endl;
         exit(1);
     }
+	cout << "Listening on port " << port << "\n";
 }
 
 /* 
@@ -495,3 +497,25 @@ string sendCommands()
 
 	return message;
 }
+
+/**
+ * @brief used to clear the gamestate instance of the completed game in the states array
+ * 
+ * @param roomNo 
+ * @author Dylan
+ */
+void endGame(int roomNo){
+	string toSend = state[roomNo].drawGrid();
+	state[roomNo].reset();
+		for (int i = 0; i < clientSockets.size(); i++)
+		{
+			if (curClientRoom[i] == roomNo + 1)
+			{
+				char* buffer = new char[BUFFERSIZE];
+				sendData(toSend, clientSockets.at(i), buffer, clientAddresses.at(i));
+				usleep(1000000 / 2);
+				sendData("!Returned to Lobby!", clientSockets.at(i), buffer, clientAddresses.at(i));
+				curClientRoom[i] = 0;
+				delete[] buffer;
+			}
+		}
