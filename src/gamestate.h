@@ -40,6 +40,19 @@ struct GameState
 		players.push_back(p);
 		noPlayer++;
 	}
+	void removePlayer(int i)
+	{
+		for(int j = 0; j < noPlayer; j++)
+		{
+			if(players.at(j).getIndex() == i)
+			{
+				players.erase(players.begin() + j);
+				noPlayer--;
+				break;
+			}
+		}
+	}
+	
 	string drawGrid()
 	{   
    	 	stringstream formatString;

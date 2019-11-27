@@ -1,5 +1,4 @@
-/*
- * Modified version of the example code given by Mea Wang for CPSC441.
+ /* Modified version of the example code given by Mea Wang for CPSC441.
  * @author Group 5: Dylan Stewart, Nicolas Urrego, Sandesh Regmi, and Wentao Sun
  */
 
@@ -44,10 +43,13 @@ void initServer (int&, int port);
 void processSockets (fd_set);
 void sendData (string, int, char[], string);
 string receiveData (int, char[], int&, string);
+string sendState();
+string sendCommands();
 //////////////////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////Game Methods////////////////////////////////////////////
 void createPlayer(int, int);
+void deletePlayer(int, int);
 void startGame(int);
 void playGame(int, string);
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -117,6 +119,7 @@ int main(int argc, char *argv[])
             // Add the new connection to the receive socket set
             FD_SET(clientSock, &recvSockSet);
             maxDesc = max(maxDesc, clientSock);
+		sendData(sendState(), clientSock, new char[BUFFERSIZE], inet_ntoa(clientAddr.sin_addr));
         }
 
         // Then process messages waiting at each ready socket
@@ -213,7 +216,7 @@ void processSockets (fd_set readySocks)
         	// Receive data from the cli// do stuff here depending on state and IP;ent
         	string messageReceived;
         	messageReceived = receiveData(sock, buffer, size, clientIPv4);
-		string messageToSend = messageReceived;
+		string messageToSend = "Invalid Command\nType 'Help' for list of Commands";
 
 		int index;
 		for(int i = 0; i < clientAddresses.size(); i++)
@@ -226,6 +229,18 @@ void processSockets (fd_set readySocks)
 		}
 		int roomNo = curClientRoom[index] - 1;
 
+		if(messageReceived.compare("help") == 0)
+		{
+			messageToSend = sendCommands();
+		}
+		if(messageReceived.compare("refresh") == 0)
+		{
+			messageToSend = sendState();
+		}
+		if(messageReceived.compare("logout") == 0)
+		{
+			
+		}
 		if(roomNo == -1)
 		{
 			if(messageReceived.substr(0,5).compare("join ") == 0)
@@ -233,6 +248,9 @@ void processSockets (fd_set readySocks)
 				int roomNumber = stoi(messageReceived.substr(5, 1));
 				curClientRoom[index] = roomNumber;
 				createPlayer(roomNumber - 1, index);
+
+				messageToSend = "Joined room ";
+				messageToSend += to_string(curClientRoom[index]);
 
 				printf("%dth player joined room %d\n", index, curClientRoom[index]);
 			}
@@ -244,6 +262,13 @@ void processSockets (fd_set readySocks)
 		}	
 		else
 		{
+			if(messageReceived.compare("leave") == 0)
+			{
+				deletePlayer(roomNo, index);
+				messageToSend = "Left room ";
+				messageToSend += to_string(curClientRoom[index]);
+				curClientRoom[index] = 0; 
+			}
         		if (messageReceived.compare("start")==0)
           		{
          			state[roomNo].votes++;
@@ -337,6 +362,10 @@ void createPlayer(int roomNo, int index)
 
         state[roomNo].addPlayer(toCreate);
 }
+void deletePlayer(int roomNo, int index)
+{
+	state[roomNo].removePlayer(index);
+}
 
 void startGame(int roomNo)
 {
@@ -410,6 +439,9 @@ void playGame(int roomNo, string messageRecieved)
         state[roomNo].turnCount++;
 	state[roomNo].turnCount = state[roomNo].turnCount%state[roomNo].noPlayer;
 	state[roomNo].usedpoints++;
+	turnCount = state[roomNo].turnCount;
+	turnPlayer = state[roomNo].players.at(turnCount);
+	index = turnPlayer.getIndex();
 	if (state[roomNo].usedpoints == state[roomNo].availablePoints)
 	{
 		state[roomNo].gameOver = true;
@@ -430,4 +462,36 @@ void playGame(int roomNo, string messageRecieved)
 		messageToSend = "It's your turn " + turnPlayer.getName();
 		sendData(messageToSend, clientSockets.at(index), buffer, clientAddresses.at(index));
     	}
+}
+
+string sendState()
+{
+	string message = "\n";
+	for(int i = 0; i < 3; i++)
+	{
+		message += "Room: ";
+		message += to_string(i + 1);
+		message += " Status: ";
+		
+		if(state[i].playing)
+		{
+			message += "Playing ";
+		}
+		else
+		{
+			message += "Waiting ";
+		}
+
+		message += "Players: ";
+		message += to_string(state[i].noPlayer);
+		message += "/4\n";
+	}
+	return message;
+}
+
+string sendCommands()
+{
+	string message ="Commands:\njoin [1-3]\tJoins room number specified by arguement 1\nleave\t Leaves current room\nrefresh\t Refreshes state of rooms\nStart\t Tells server you are ready. Game starts once all players start\n[0-3],[0-7]\t Plot points onto game";
+
+	return message;
 }
