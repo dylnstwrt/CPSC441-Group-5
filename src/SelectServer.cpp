@@ -35,7 +35,7 @@ int curClientRoom[6] = {0,0,0,0,0,0};
 
 bool playing = false; // when false, server is considered "in lobby"
 
-vector <int> clientSockets; 
+vector <int> clientSockets;
 //////////////////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////Server Methods//////////////////////////////////////////
@@ -55,7 +55,7 @@ void playGame(int, string);
 void endGame(int);
 //////////////////////////////////////////////////////////////////////////////////////////
 
-/* 
+/*
     @Author Mea Wang, edited by Dylan for CPSC441
  */
 int main(int argc, char *argv[])
@@ -137,7 +137,7 @@ int main(int argc, char *argv[])
     close(serverSock);
 }
 
-/* 
+/*
     @Author Mea Wang
  */
 void initServer(int& serverSock, int port)
@@ -190,7 +190,7 @@ void initServer(int& serverSock, int port)
 	cout << "Listening on port " << port << "\n";
 }
 
-/* 
+/*
     @Author Mea Wang, Edited for CPSC441 by Dylan
  */
 void processSockets (fd_set readySocks)
@@ -241,7 +241,7 @@ void processSockets (fd_set readySocks)
 		}
 		if(messageReceived.compare("logout") == 0)
 		{
-			
+
 		}
 		if(roomNo == -1)
 		{
@@ -261,7 +261,7 @@ void processSockets (fd_set readySocks)
 		{
 			playGame(roomNo, messageReceived);
 			continue;
-		}	
+		}
 		else
 		{
 			if(messageReceived.compare("leave") == 0)
@@ -269,7 +269,7 @@ void processSockets (fd_set readySocks)
 				deletePlayer(roomNo, index);
 				messageToSend = "Left room ";
 				messageToSend += to_string(curClientRoom[index]);
-				curClientRoom[index] = 0; 
+				curClientRoom[index] = 0;
 			}
         		if (messageReceived.compare("start")==0)
           		{
@@ -289,7 +289,7 @@ void processSockets (fd_set readySocks)
 	delete[] buffer;
 }
 
-/* 
+/*
     @author San
  */
 string receiveData (int sock, char* inBuffer, int& size, string ip)
@@ -324,7 +324,7 @@ string receiveData (int sock, char* inBuffer, int& size, string ip)
     	return currentMsg;
 }
 
-/* 
+/*
     @author San
  */
 void sendData (string msgToSend, int sock, char* buffer, string ip)
@@ -349,7 +349,7 @@ void sendData (string msgToSend, int sock, char* buffer, string ip)
     cout << "SentTo " << ip << " : " << msgToSend << endl;
 }
 
-/* 
+/*
     @author Dylan
  */
 void createPlayer(int roomNo, int index)
@@ -394,7 +394,48 @@ void startGame(int roomNo)
 	sendData(send, clientSockets.at(i), buffer, clientAddresses.at(i));
 }
 
-/* 
+bool validMove(int x, int y){
+  for (int xx = 0; xx < pointsTaken.size(); xx++)
+  {
+    int ptx = pointsTaken[xx].getXpos()*5; // 5
+    int pty = pointsTaken[xx].getYpos()*4; // 4
+    if (x == ptx && y == pty)
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+
+bool currentValidMove(string inputMessage){
+  int length = inputMessage.length();
+  std::cout << length << '\n';
+
+  if(length == 3){
+    if (isdigit(inputMessage.at(0)) && isdigit(inputMessage.at(2)) ) {
+
+      int x = atoi(isdigit(inputMessage.at(1)));
+      int y = atoi(isdigit(inputMessage.at(3)));
+      if (validMove(x,y) == true) {
+        return true;
+      }
+      else{
+        return false;
+      }
+    }
+    else{
+      return false;
+    }
+  }
+  else{
+    return false;
+  }
+  return false;
+}
+
+
+/*
     @author Dylan. Game loop modelled after main() in misc/main.cpp; which was written by Nico
  */
 void playGame(int roomNo, string messageRecieved)
@@ -413,10 +454,16 @@ void playGame(int roomNo, string messageRecieved)
 
        	// wait for client's response
 
+
+        // ********************************************************************************************************* dont know if works
+        if(currentValidMove(string messageRecieved) == false){
+          return;
+        }
+
         // for tokenizing message from client
         vector<string> coordinates;
         stringstream stream(messageRecieved);
-        
+
         string xCoordinateString;
         string yCoordinateString;
 
@@ -474,7 +521,7 @@ string sendState()
 		message += "Room: ";
 		message += to_string(i + 1);
 		message += " Status: ";
-		
+
 		if(state[i].playing)
 		{
 			message += "Playing ";
