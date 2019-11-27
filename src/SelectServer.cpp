@@ -372,6 +372,8 @@ void deletePlayer(int roomNo, int index)
 void startGame(int roomNo)
 {
 	char* buffer = new char[BUFFERSIZE];
+	state[roomNo].generateSpot();
+	cout << "Hidden Spot: " << state[roomNo].hiddenSpot.getXpos() << "," << state[roomNo].hiddenSpot.getYpos() << "\n"; 
 
 	usleep(1000000/2);
 
@@ -394,11 +396,11 @@ void startGame(int roomNo)
 	sendData(send, clientSockets.at(i), buffer, clientAddresses.at(i));
 }
 
-bool validMove(int x, int y){
-  for (int xx = 0; xx < pointsTaken.size(); xx++)
+bool validMove(int x, int y, int roomNo){
+  for (int xx = 0; xx < state[roomNo].pointsTaken.size(); xx++)
   {
-    int ptx = pointsTaken[xx].getXpos()*5; // 5
-    int pty = pointsTaken[xx].getYpos()*4; // 4
+    int ptx = state[roomNo].pointsTaken[xx].getXpos()*5; // 5
+    int pty = state[roomNo].pointsTaken[xx].getYpos()*4; // 4
     if (x == ptx && y == pty)
     {
       return false;
@@ -408,16 +410,16 @@ bool validMove(int x, int y){
 }
 
 
-bool currentValidMove(string inputMessage){
+bool currentValidMove(string inputMessage, int roomNo){
   int length = inputMessage.length();
   std::cout << length << '\n';
 
   if(length == 3){
     if (isdigit(inputMessage.at(0)) && isdigit(inputMessage.at(2)) ) {
 
-      int x = atoi(isdigit(inputMessage.at(1)));
-      int y = atoi(isdigit(inputMessage.at(3)));
-      if (validMove(x,y) == true) {
+      int x = stoi(inputMessage.substr(1));
+      int y = stoi(inputMessage.substr(2,1));
+      if (validMove(x,y, roomNo) == true) {
         return true;
       }
       else{
@@ -456,7 +458,7 @@ void playGame(int roomNo, string messageRecieved)
 
 
         // ********************************************************************************************************* dont know if works
-        if(currentValidMove(string messageRecieved) == false){
+        if(currentValidMove(messageRecieved, roomNo) == false){
           return;
         }
 
@@ -566,3 +568,4 @@ void endGame(int roomNo){
 				delete[] buffer;
 			}
 		}
+}
