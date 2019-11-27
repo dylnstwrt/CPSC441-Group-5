@@ -150,6 +150,7 @@ int main(int argc, char *argv[])
             char* tempBuff = new char[BUFFERSIZE];
             msgRecev = receiveData(sock, (char*)tempBuff, bytesRecv);
             cout << "Server: " << msgRecev << endl;
+            if (msgRecev.compare(0,1,"!") == 0) playing = false;
             delete[] tempBuff; 
         }
         
