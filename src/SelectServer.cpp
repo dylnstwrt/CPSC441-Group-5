@@ -43,7 +43,6 @@ void initServer (int&, int port);
 void processSockets (fd_set);
 void sendData (string, int, char[], string);
 string receiveData (int, char[], int&, string);
-string sendState();
 string sendCommands();
 //////////////////////////////////////////////////////////////////////////////////////////
 
@@ -120,8 +119,7 @@ int main(int argc, char *argv[])
             // Add the new connection to the receive socket set
             FD_SET(clientSock, &recvSockSet);
             maxDesc = max(maxDesc, clientSock);
-		sendData(sendState(), clientSock, new char[BUFFERSIZE], inet_ntoa(clientAddr.sin_addr));
-        }
+	}
 
         // Then process messages waiting at each ready socket
         else processSockets(tempRecvSockSet);
@@ -234,10 +232,6 @@ void processSockets (fd_set readySocks)
 		if(messageReceived.compare("help") == 0)
 		{
 			messageToSend = sendCommands();
-		}
-		if(messageReceived.compare("refresh") == 0)
-		{
-			messageToSend = sendState();
 		}
 		if(messageReceived.compare("logout") == 0)
 		{
@@ -412,28 +406,37 @@ bool validMove(int x, int y, int roomNo){
 
 bool currentValidMove(string inputMessage, int roomNo){
   int length = inputMessage.length();
-  std::cout << length << '\n';
-
-  if(length == 3){
-    if (isdigit(inputMessage.at(0)) && isdigit(inputMessage.at(2)) ) {
-
-      int x = stoi(inputMessage.substr(1));
-      int y = stoi(inputMessage.substr(2,1));
-      if (validMove(x,y, roomNo) == true) {
-        return true;
-      }
-      else{
-        return false;
-      }
-    }
-    else{
-      return false;
-    }
-  }
-  else{
-    return false;
-  }
-  return false;
+	if(length == 3)
+	{
+		if (isdigit(inputMessage.at(0)) && isdigit(inputMessage.at(2)))
+		{
+			string isSemi = inputMessage.substr(1,1);
+			if(!isSemi.compare(",") == 0)
+			{
+				return false;
+			}
+			int x = stoi(inputMessage.substr(0,1));
+      			int y = stoi(inputMessage.substr(2,1));
+			printf("%d %d\n", x, y);
+      			if (validMove(x,y, roomNo) == true)
+			{
+        			return true;
+      			}
+      			else
+			{
+        			return false;
+      			}
+    		}
+    		else
+		{
+      			return false;
+    		}
+  	}
+  	else
+	{
+    		return false;
+  	}
+	return false;
 }
 
 
@@ -458,7 +461,8 @@ void playGame(int roomNo, string messageRecieved)
 
 
         // ********************************************************************************************************* dont know if works
-        if(currentValidMove(messageRecieved, roomNo) == false){
+        
+	if(currentValidMove(messageRecieved, roomNo) == false){
           return;
         }
 
@@ -515,34 +519,9 @@ void playGame(int roomNo, string messageRecieved)
     	}
 }
 
-string sendState()
-{
-	string message = "\n";
-	for(int i = 0; i < 3; i++)
-	{
-		message += "Room: ";
-		message += to_string(i + 1);
-		message += " Status: ";
-
-		if(state[i].playing)
-		{
-			message += "Playing ";
-		}
-		else
-		{
-			message += "Waiting ";
-		}
-
-		message += "Players: ";
-		message += to_string(state[i].noPlayer);
-		message += "/4\n";
-	}
-	return message;
-}
-
 string sendCommands()
 {
-	string message ="Commands:\njoin [1-3]\tJoins room number specified by arguement 1\nleave\t Leaves current room\nrefresh\t Refreshes state of rooms\nStart\t Tells server you are ready. Game starts once all players start\n[0-3],[0-7]\t Plot points onto game";
+	string message ="Commands:\njoin [1-3]\tJoins room number specified by arguement 1\nleave\t Leaves current room\nStart\t Tells server you are ready. Game starts once all players start\n[0-3],[0-7]\t Plot points onto game";
 
 	return message;
 }

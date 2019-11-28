@@ -82,34 +82,12 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+
+    cout << "Please enter a message to be sent to the server ('logout' to terminate): ";
+    fgets(outBuffer, BUFFERSIZE, stdin);
     while (strncmp(outBuffer, "logout", 6) != 0)
     {
-        string msgRecev;
-        msgRecev = receiveData(sock, (char*)inBuffer, bytesRecv);
 
-        std::cout << "Server: " << msgRecev << '\n';
-
-        // check for blocking message
-        if (msgRecev.compare(0,2,"**") == 0) {
-            playing = true;
-        }
-        
-        // issues with amount being read from socket when multiple messages are queued
-        // bandaid is using microsleeps to make sure only one message at a time would be waiting on the socket
-        // otherwise we read multiple messages that have been sent, i.e. string = integer string + message + first n bits of next message.
-
-        // when playing is true and the last message recieved isn't the unblocking message (i.e. "It's your turn player #")
-        while(msgRecev.compare(0,4,"It's") != 0 && playing) {
-            char* tempBuff = new char[BUFFERSIZE];
-            msgRecev = receiveData(sock, (char*)tempBuff, bytesRecv);
-            cout << "Server: " << msgRecev << endl;
-            if (msgRecev.compare(0,1,"!") == 0) playing = false;
-            delete[] tempBuff; 
-        }
-        
-
-        cout << "Please enter a message to be sent to the server ('logout' to terminate): ";
-        fgets(outBuffer, BUFFERSIZE, stdin);
         msgLength = strlen(outBuffer);
         string msg = string(outBuffer);
         string msgLengthStr = to_string(msgLength);
@@ -151,6 +129,34 @@ int main(int argc, char *argv[])
 
         // Clear the buffers
         memset(&outBuffer, 0, BUFFERSIZE);
+
+
+        string msgRecev;
+        msgRecev = receiveData(sock, (char*)inBuffer, bytesRecv);
+
+        std::cout << "Server: " << msgRecev << '\n';
+
+        // check for blocking message
+        if (msgRecev.compare(0,2,"**") == 0) {
+            playing = true;
+        }
+        
+        // issues with amount being read from socket when multiple messages are queued
+        // bandaid is using microsleeps to make sure only one message at a time would be waiting on the socket
+        // otherwise we read multiple messages that have been sent, i.e. string = integer string + message + first n bits of next message.
+
+        // when playing is true and the last message recieved isn't the unblocking message (i.e. "It's your turn player #")
+        while(msgRecev.compare(0,4,"It's") != 0 && playing) {
+            char* tempBuff = new char[BUFFERSIZE];
+            msgRecev = receiveData(sock, (char*)tempBuff, bytesRecv);
+            cout << "Server: " << msgRecev << endl;
+            if (msgRecev.compare(0,1,"!") == 0) playing = false;
+            delete[] tempBuff; 
+        }
+        
+
+        cout << "Please enter a message to be sent to the server ('logout' to terminate): ";
+        fgets(outBuffer, BUFFERSIZE, stdin);
     }
 
     // Close the socket
