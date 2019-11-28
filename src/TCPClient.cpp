@@ -11,6 +11,7 @@
 #include <stdlib.h>     // for atoi() and exit()
 #include <string.h>     // for memset()
 #include <unistd.h>     // for close()
+#include <chrono>
 
 using namespace std;
 
@@ -88,6 +89,10 @@ int main(int argc, char *argv[])
     while (strncmp(outBuffer, "logout", 6) != 0)
     {
 
+        chrono::system_clock::time_point TurnStart;
+        chrono::system_clock::time_point TurnEnd;
+        chrono::system_clock::time_point WaitEnd;
+        
         msgLength = strlen(outBuffer);
         string msg = string(outBuffer);
         string msgLengthStr = to_string(msgLength);
@@ -135,7 +140,7 @@ int main(int argc, char *argv[])
         msgRecev = receiveData(sock, (char*)inBuffer, bytesRecv);
 
         std::cout << "Server: " << msgRecev << '\n';
-
+        
         // check for blocking message
         if (msgRecev.compare(0,2,"**") == 0) {
             playing = true;
