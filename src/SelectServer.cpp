@@ -216,7 +216,7 @@ void processSockets (fd_set readySocks)
         	// Receive data from the cli// do stuff here depending on state and IP;ent
         	string messageReceived;
         	messageReceived = receiveData(sock, buffer, size, clientIPv4);
-		string messageToSend = "Invalid Command\nType 'Help' for list of Commands";
+			string messageToSend = "Invalid Command\nType 'Help' for list of Commands";
 
 		int index;
 		for(int i = 0; i < clientAddresses.size(); i++)
@@ -227,6 +227,12 @@ void processSockets (fd_set readySocks)
 				break;
 			}
 		}
+		
+		if (messageReceived.compare("disconnect")==0) {
+				clientSockets.erase(clientSockets.begin() + index);
+				continue;
+			}
+		
 		int roomNo = curClientRoom[index] - 1;
 
 		if(messageReceived.compare("help") == 0)
@@ -290,6 +296,19 @@ string receiveData (int sock, char* inBuffer, int& size, string ip)
 {
 	// Receive the message from client
     	size = recv(sock, (char *) inBuffer, BUFFERSIZE, 0);
+		// allows for disconnecting without crashing
+		// TODO need to be able to reconnect on same client after disconnecting
+		if (size <= 0){
+			// remove socket file descriptor from set
+			cout << "**client has been disconnected**" << endl;
+			FD_CLR(sock, &recvSockSet);
+			
+			// Update the max descriptor
+			while (FD_ISSET(maxDesc, &recvSockSet) == false)
+				maxDesc -= 1;
+
+			return "disconnect"; 
+		}
 
     	string InputMsgSizeInitial = string(inBuffer);
     	int InputMsgSize = stoi(InputMsgSizeInitial);
@@ -497,11 +516,12 @@ void playGame(int roomNo, string messageRecieved)
 	turnCount = state[roomNo].turnCount;
 	turnPlayer = state[roomNo].players.at(turnCount);
 	index = turnPlayer.getIndex();
-	if (state[roomNo].usedpoints == state[roomNo].availablePoints)
+	/* if (state[roomNo].usedpoints == state[roomNo].availablePoints) */
+	if ( state[roomNo].players.at(turnCount).getXpos() == state[roomNo].hiddenSpot.getXpos() && state[roomNo].players.at(turnCount).getYpos() == state[roomNo].hiddenSpot.getYpos())
 	{
 		state[roomNo].gameOver = true;
 		state[roomNo].drawGrid();
-    		terminated = true;
+    		endGame(roomNo);
 	}
 	else
 	{
@@ -534,6 +554,8 @@ string sendCommands()
  */
 void endGame(int roomNo){
 	string toSend = state[roomNo].drawGrid();
+	string toConcat = "Player "+to_string(state[roomNo].turnCount + 1)+" has won!\n";
+	toSend += toConcat;
 	state[roomNo].reset();
 		for (int i = 0; i < clientSockets.size(); i++)
 		{
