@@ -12,6 +12,9 @@
 #include <string.h>     // for memset()
 #include <unistd.h>     // for close()
 #include <chrono>
+#include <ctime>
+#include <iomanip>
+#include <fstream>
 
 using namespace std;
 
@@ -36,6 +39,15 @@ int main(int argc, char *argv[])
     int msgLength;                   // Length of the outgoing message
     int bytesSent;                   // Number of bytes sent
 
+    int iterCount = 0;
+    bool debug = true;
+
+    chrono::system_clock::time_point TurnStart;
+    chrono::system_clock::time_point TurnEnd;
+    chrono::system_clock::time_point WaitEnd;
+
+    ofstream toFile;
+    
     // Check for input errors
     if (argc != 3)
     {
@@ -83,16 +95,19 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+    if (debug)
+    {
+        string fileName = "timings.csv";
+        toFile.open(fileName);
+        toFile << "Turn #,Turn Start,Input Taken,Turn Finished,Total Time,Time Waiting,Message Delay,\n";
+    }
+
 
     cout << "Please enter a message to be sent to the server ('logout' to terminate): ";
     fgets(outBuffer, BUFFERSIZE, stdin);
     while (strncmp(outBuffer, "logout", 6) != 0)
     {
 
-        chrono::system_clock::time_point TurnStart;
-        chrono::system_clock::time_point TurnEnd;
-        chrono::system_clock::time_point WaitEnd;
-        
         msgLength = strlen(outBuffer);
         string msg = string(outBuffer);
         string msgLengthStr = to_string(msgLength);
@@ -140,7 +155,34 @@ int main(int argc, char *argv[])
         msgRecev = receiveData(sock, (char*)inBuffer, bytesRecv);
 
         std::cout << "Server: " << msgRecev << '\n';
-        
+        if (playing && debug)
+        {
+            TurnEnd = chrono::system_clock::now();
+            chrono::duration<double> TotalTime = TurnEnd - TurnStart;
+            chrono::duration<double> TimeWaiting = WaitEnd - TurnStart;
+            chrono::duration<double> MessageTime = TotalTime - TimeWaiting; 
+
+            time_t tStart = chrono::system_clock::to_time_t(TurnStart - chrono::hours(24));
+            time_t tEnd = chrono::system_clock::to_time_t(TurnEnd - chrono::hours(24));
+            time_t wEnd = chrono::system_clock::to_time_t(WaitEnd - chrono::hours(24));
+
+            cout << "Turn No. " << ++iterCount << "\n";
+            toFile << iterCount << ",";
+
+            cout << "\tTurn Start: " << put_time(localtime(&tStart), "%F %T") << '\n';
+            toFile << put_time(localtime(&tStart), "%F %T") << ",";
+            cout << "\tInput Taken: " << put_time(localtime(&wEnd), "%F %T") << '\n';
+            toFile << put_time(localtime(&wEnd), "%F %T") << ",";
+            cout << "\tTurn Finished: " << put_time(localtime(&tEnd), "%F %T") << '\n';
+            toFile << put_time(localtime(&tEnd), "%F %T") << ",";
+
+            cout << "\tTotal Time: " << TotalTime.count() << "s\n";
+            toFile << to_string(TotalTime.count()) << ",";
+            cout << "\tTime Waiting: " << TimeWaiting.count() << "s\n";
+            toFile << to_string(TimeWaiting.count()) << ",";
+            cout << "\tMessage Time: " << MessageTime.count() << "s\n";
+            toFile << to_string(MessageTime.count()) << ",\n";
+        }
         // check for blocking message
         if (msgRecev.compare(0,2,"**") == 0) {
             playing = true;
@@ -161,10 +203,13 @@ int main(int argc, char *argv[])
         
 
         cout << "Please enter a message to be sent to the server ('logout' to terminate): ";
+        if (playing) TurnStart = chrono::system_clock::now();
         fgets(outBuffer, BUFFERSIZE, stdin);
+        if (playing) WaitEnd = chrono::system_clock::now();
     }
 
     // Close the socket
+    toFile.close();
     close(sock);
     exit(0);
 }
@@ -179,19 +224,17 @@ string receiveData (int sock, char* inBuffer, int& size)
     recv(sock, (char *) inBuffer, BUFFERSIZE, 0);
 
 
-    // Check for connection close (0) or errors (< 0)
-    /*
-    if (size <= 0)
+    
+   /*  if (size <= 0)
     {
         cout << "recv() failed, or the connection is closed. " << endl;
-        FD_CLR(sock, &recvSockSet);
+        //FD_CLR(sock, &recvSockSet);
 
         // Update the max descriptor
-        while (FD_ISSET(maxDesc, &recvSockSet) == false)
-              maxDesc -= 1;
-        return;
-    }
-    */
+        //while (FD_ISSET(maxDesc, &recvSockSet) == false)
+        //      maxDesc -= 1;
+        exit(-1);
+    } */
 
     string InputMsgSizeInitial = string(inBuffer);
     int InputMsgSize = stoi(InputMsgSizeInitial);
